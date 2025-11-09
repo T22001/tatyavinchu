@@ -1,0 +1,97 @@
+import tensorflow as tf
+from tensorflow.keras import layers, models
+import os
+import matplotlib.pyplot as plt
+
+# ==== PATHS ====
+BASE_DIR = r"C:\Users\niles\Downloads\food-101\food-101"
+IMG_DIR = os.path.join(BASE_DIR, "images")
+META_DIR = os.path.join(BASE_DIR, "meta")
+
+# ==== LOAD TRAIN/TEST FILES ====
+def load_file_list(filename):
+    with open(os.path.join(META_DIR, filename), "r") as f:
+        return [line.strip() for line in f]
+
+train_files = load_file_list("train.txt")
+test_files = load_file_list("test.txt")
+
+# ==== PREPARE PATHS & LABELS ====
+def prepare_data(file_list):
+    paths = [os.path.join(IMG_DIR, f"{x}.jpg") for x in file_list]
+    labels = [x.split("/")[0] for x in file_list]
+    return paths, labels
+
+train_paths, train_labels = prepare_data(train_files)
+test_paths, test_labels = prepare_data(test_files)
+
+# ==== ENCODE LABELS ====
+class_names = sorted(set(train_labels))
+label_to_index = {name: i for i, name in enumerate(class_names)}
+train_labels = [label_to_index[l] for l in train_labels]
+test_labels = [label_to_index[l] for l in test_labels]
+
+# ==== CREATE TF DATASETS ====
+IMG_SIZE = (128, 128)
+BATCH_SIZE = 32
+
+def preprocess_image(path, label):
+    img = tf.io.read_file(path)
+    img = tf.image.decode_jpeg(img, channels=3)
+    img = tf.image.resize(img, IMG_SIZE)
+    return img / 255.0, label
+
+train_ds = (tf.data.Dataset.from_tensor_slices((train_paths, train_labels))
+            .shuffle(1000)
+            .map(preprocess_image, num_parallel_calls=tf.data.AUTOTUNE)
+            .batch(BATCH_SIZE)
+            .prefetch(tf.data.AUTOTUNE))
+
+test_ds = (tf.data.Dataset.from_tensor_slices((test_paths, test_labels))
+           .map(preprocess_image, num_parallel_calls=tf.data.AUTOTUNE)
+           .batch(BATCH_SIZE)
+           .prefetch(tf.data.AUTOTUNE))
+
+# ==== SIMPLE CNN MODEL ====
+model = models.Sequential([
+    layers.Conv2D(32, 3, activation='relu', input_shape=(*IMG_SIZE, 3)),
+    layers.MaxPooling2D(),
+    layers.Conv2D(64, 3, activation='relu'),
+    layers.MaxPooling2D(),
+    layers.Conv2D(128, 3, activation='relu'),
+    layers.MaxPooling2D(),
+    layers.Flatten(),
+    layers.Dense(256, activation='relu'),
+    layers.Dense(len(class_names), activation='softmax')
+])
+
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
+
+# ==== TRAIN MODEL ====
+history = model.fit(train_ds, validation_data=test_ds, epochs=5)
+
+# ==== EVALUATE ====
+test_loss, test_acc = model.evaluate(test_ds)
+print(f"\n✅ Test Accuracy: {test_acc*100:.2f}%")
+
+# ==== PLOT ACCURACY ====
+plt.plot(history.history['accuracy'], label='Train')
+plt.plot(history.history['val_accuracy'], label='Validation')
+plt.xlabel('Epoch')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.title('Training vs Validation Accuracy')
+plt.show()
+
+# ==== SAMPLE PREDICTIONS ====
+for images, labels in test_ds.take(1):
+    preds = tf.argmax(model.predict(images), axis=1)
+    plt.figure(figsize=(10, 10))
+    for i in range(9):
+        ax = plt.subplot(3, 3, i + 1)
+        plt.imshow(images[i].numpy())
+        plt.title(f"Pred: {class_names[preds[i]]}\nTrue: {class_names[labels[i]]}")
+        plt.axis("off")
+    plt.show()
