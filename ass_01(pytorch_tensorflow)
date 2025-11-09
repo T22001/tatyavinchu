@@ -1,0 +1,89 @@
+ import tensorflow as tf
+import numpy as np
+
+a = tf.constant(10)
+b = tf.constant(20)
+print("The sum is :",(a+b).numpy())
+
+x = np.random.rand(100).astype(np.float32)
+print("Random input values(x): ",x[:5])
+
+y = x*0.2 + 0.2
+
+W = tf.Variable(tf.random.normal([1]))
+bias = tf.Variable(tf.zeros([1]))
+print(W.numpy(),bias.numpy())
+
+def mse_loss():
+    y_pred = W*x + bias
+    loss = tf.reduce_mean(tf.square(y_pred - y))
+    return loss
+
+optimizer = tf.keras.optimizers.Adam()
+
+for step in range(5000):
+    with tf.GradientTape() as tape:
+        loss = mse_loss()
+    gradients = tape.gradient(loss,[W,bias])
+    optimizer.apply_gradients(zip(gradients,[W,bias]))
+    if step % 500 == 0 :
+        print("Step : ",step," loss: ",loss.numpy()," Weight: ",W.numpy()," Bias: ",bias.numpy())
+
+import torch
+
+data = [[1,2],[3,4]]
+x_data = torch.tensor(data)
+print("\n Tensor from data \n",x_data)
+
+np_array = np.array(data)
+x_np = torch.from_numpy(np_array)
+print("\n Tensor from numpy \n",x_np)
+
+x_ones = torch.ones_like(x_data)
+print("\n  ones Tensor  \n",x_ones)
+
+x_rand = torch.rand_like(x_data, dtype= torch.float)
+print("\n  Random Tensor  \n",x_rand)
+
+shape = (2,3)
+random_tensor = torch.rand(shape)
+print("\n  Random Tensor of shape(2,3)  \n",random_tensor)
+
+ones_tensor = torch.ones(shape)
+print("\n  ones Tensor of shape(2,3)  \n",ones_tensor)
+
+zeros_tensor = torch.zeros(shape)
+print("\n  Zeros Tensor of shape(2,3)  \n",zeros_tensor)
+
+tensor = torch.rand(3,4)
+print(tensor)
+print("\n Shape",tensor.shape," type :",tensor.dtype, " Device :",tensor.device)
+
+device = "cudo" if torch.cuda.is_available() else "cpu"
+tensor = tensor.to(device)
+print("Device tensor is stored in :",tensor.device)
+
+tensor = torch.ones(4,4)
+print(tensor)
+
+tensor1 = torch.zeros(4,4)
+print(tensor1)
+
+tensor2 = torch.cat([tensor,tensor1])
+print(tensor2)
+
+print(tensor * tensor1)
+
+print(random_tensor.T)
+
+tensor.add_(5)
+print(tensor)
+
+t = torch.ones(5)
+print(t)
+n = t.numpy()
+print(n,type(n))
+
+!pip install tensorflow
+!pip install torch torchvision torchaudio
+
