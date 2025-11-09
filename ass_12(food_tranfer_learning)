@@ -1,0 +1,54 @@
+# ==== OBJECT DETECTION USING TRANSFER LEARNING ON FOOD-101 ====
+
+import os
+import tensorflow as tf
+import tensorflow_hub as hub
+import matplotlib.pyplot as plt
+import numpy as np
+import cv2
+from PIL import Image
+
+# ==== PATHS ====
+base_dir = r"C:\Users\niles\Downloads\food-101\food-101"
+images_dir = os.path.join(base_dir, "images")
+meta_dir = os.path.join(base_dir, "meta")
+
+# ==== SAMPLE IMAGE ====
+sample_class = "apple_pie"   # change to any folder inside 'images'
+sample_image = os.path.join(images_dir, sample_class, os.listdir(os.path.join(images_dir, sample_class))[0])
+
+# ==== LOAD PRETRAINED MODEL FROM TENSORFLOW HUB ====
+model_url = "https://tfhub.dev/tensorflow/efficientdet/d0/1"
+detector = hub.load(model_url)
+print("✅ Pretrained EfficientDet-D0 model loaded successfully!")
+
+# ==== PREPROCESS IMAGE ====
+img = tf.image.decode_jpeg(tf.io.read_file(sample_image), channels=3)
+img = tf.image.convert_image_dtype(img, tf.float32)
+input_tensor = tf.image.resize(img, [512, 512])[tf.newaxis, ...]
+
+# ==== RUN DETECTION ====
+detections = detector(input_tensor)
+boxes = detections["detection_boxes"][0].numpy()
+classes = detections["detection_classes"][0].numpy().astype(int)
+scores = detections["detection_scores"][0].numpy()
+
+# ==== VISUALIZE DETECTIONS ====
+img_np = np.array(img)
+h, w, _ = img_np.shape
+
+for i in range(len(scores)):
+    if scores[i] > 0.3:
+        ymin, xmin, ymax, xmax = boxes[i]
+        start_point = (int(xmin * w), int(ymin * h))
+        end_point = (int(xmax * w), int(ymax * h))
+        color = (0, 255, 0)
+        cv2.rectangle(img_np, start_point, end_point, color, 2)
+        cv2.putText(img_np, f"Obj {classes[i]} ({scores[i]*100:.1f}%)",
+                    (int(xmin*w), int(ymin*h)-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+plt.figure(figsize=(8,8))
+plt.imshow(img_np)
+plt.axis("off")
+plt.title("Object Detection using Transfer Learning (EfficientDet-D0)")
+plt.show()
